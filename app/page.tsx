@@ -35,19 +35,19 @@ function choosePhrases(cardsAmt: number): Phrase[] {
 }
 
 // Function to replace the chosen phrase in a list with a random new one not currently in the list
-function replacePhrase(phrases: Phrase[], phraseId: number): Phrase[] {
-  console.log(phraseId);
+function replacePhrase(phrases: Phrase[], phraseId: number): { phrases: Phrase[]; newPhrase: Phrase } {
   let newId = phrases[0].id;
   let ind = 0;
   // As long as we keep finding something in our list, reroll
   while (phrases.findIndex((phrase) => phrase.id == newId) != -1) {
     ind = randomNumberInRange(0, phraseList.length - 1);
-    console.log(ind);
     newId = phraseList[ind].id;
   }
-  let replaceInd = phrases.findIndex((phrase) => phrase.id == phraseId);
-  phrases[replaceInd] = phraseList[ind];
-  return phrases;
+  const newPhrase = phraseList[ind];
+  const replaceInd = phrases.findIndex((phrase) => phrase.id == phraseId);
+  const updatedPhrases = [...phrases];
+  updatedPhrases[replaceInd] = newPhrase;
+  return { phrases: updatedPhrases, newPhrase };
 }
 
 /* Randomize array not-in-place using Durstenfeld shuffle algorithm */
@@ -99,18 +99,16 @@ export default function HomePage() {
     }
   }
 
-  // Shuffle the phrases so pairs don't appear next to each other
+  // Shuffle the phrases and images so pairs don't appear next to each other, and images don't match their phrases
   // Use memo to ensure this only happens when our array actually changes
-  const shuffledForTxt = useMemo(() => {
-    console.log("Running memo shuffle txt");
-    return shuffleArray(chosenPhrases);
-  }, [JSON.stringify(chosenPhrases)]);
+  const [txtOrder, setTxtOrder] = useState<Phrase[]>(() => shuffleArray(chosenPhrases));
+  const [imgOrder, setImgOrder] = useState<Phrase[]>(() => shuffleArray(chosenPhrases));
 
   // Map each element in the chosen phrases array to a text card
   // Use state to keep track of which button is selected
   const [selectedTxtButton, setTxtButton] = useState(-1);
   // Use state to keep track of which audio is playing
-  const textCards = shuffledForTxt.map((phrase) => {
+  const textCards = txtOrder.map((phrase) => {
     let cardText: string = isClient ? phrase.object + phrase.particle + phrase.kanji : "ローディング中";
     return (
       <TextCard
@@ -123,20 +121,13 @@ export default function HomePage() {
     );
   });
 
-  const halfwayText = Math.ceil(textCards.length / 2);
-  const textCardsLeft = textCards.slice(0, halfwayText);
-  const textCardsRight = textCards.slice(halfwayText, textCards.length);
-
-  // Shuffle the phrases so images get picked in a different order than the text
-  // Use memo to ensure this only happens when our array actually changes
-  const shuffledForImg = useMemo(() => {
-    return shuffleArray(chosenPhrases);
-  }, [JSON.stringify(chosenPhrases)]);
+  const textCardsLeft = textCards.filter((_, i) => i % 2 === 0);
+  const textCardsRight = textCards.filter((_, i) => i % 2 === 1);
 
   // Map each element in the chosen phrases array to an image card
   // Use state to keep track of which button is selected
   const [selectedImgButton, setImgButton] = useState(-1);
-  const imgCards = shuffledForImg.map((phrase) => {
+  const imgCards = imgOrder.map((phrase) => {
     return (
       <ImageCard
         key={phrase.id}
@@ -152,28 +143,40 @@ export default function HomePage() {
     if (lives == 0) return;
     setIsEvaluating(true);
 
-    // If the selected buttons are the same id, then it's a match
-    if (selectedTxtButton == selectedImgButton) {
+    const wasCorrect = selectedTxtButton == selectedImgButton;
+    const matchedId = selectedTxtButton;
+
+    if (wasCorrect) {
       setIsCorrectMatch(true);
       setStreak(streak + 1);
       setScore(score + 1000 * (streak + 1));
-      if (difficulty === "endless") setChosenPhrases(replacePhrase(chosenPhrases, selectedTxtButton));
-      console.log(chosenPhrases);
     } else {
       setIsCorrectMatch(false);
       setStreak(0);
       setLives(lives - 1);
     }
+
     setTimeout(() => {
+      if (wasCorrect) {
+        if (difficulty === "endless") {
+          const { phrases: updatedPhrases, newPhrase } = replacePhrase(chosenPhrases, matchedId);
+          setChosenPhrases(updatedPhrases);
+          setTxtOrder((prev) => prev.map((phrase) => (phrase.id === matchedId ? newPhrase : phrase)));
+          setImgOrder((prev) => prev.map((phrase) => (phrase.id === matchedId ? newPhrase : phrase)));
+        } else {
+          setChosenPhrases((prev) => prev.filter((phrase) => phrase.id !== matchedId));
+          setTxtOrder((prev) => prev.filter((phrase) => phrase.id !== matchedId));
+          setImgOrder((prev) => prev.filter((phrase) => phrase.id !== matchedId));
+        }
+      }
       setTxtButton(-1);
       setImgButton(-1);
       setIsEvaluating(false);
     }, 3000);
   };
 
-  const halfwayImg = Math.ceil(textCards.length / 2);
-  const imgCardsLeft = imgCards.slice(0, halfwayImg);
-  const imgCardsRight = imgCards.slice(halfwayImg, imgCards.length);
+  const imgCardsLeft = imgCards.filter((_, i) => i % 2 === 0);
+  const imgCardsRight = imgCards.filter((_, i) => i % 2 === 1);
 
   let titleBar;
 
@@ -229,7 +232,10 @@ export default function HomePage() {
           <Center>
             <Button
               onClick={() => {
-                setChosenPhrases(choosePhrases(difficultyMap[difficulty]));
+                const newPhrases = choosePhrases(difficultyMap[difficulty]);
+                setChosenPhrases(newPhrases);
+                setTxtOrder(shuffleArray(newPhrases));
+                setImgOrder(shuffleArray(newPhrases));
                 setScore(0);
                 setStreak(0);
                 setLives(3);
