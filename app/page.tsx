@@ -1,6 +1,6 @@
 "use client";
 
-import { Center, Grid, Title, Image, Button, Space, Radio, Group } from "@mantine/core";
+import { Center, Grid, Title, Image, Button, Space, Radio, Group, Modal, TextInput, Stack, Text } from "@mantine/core";
 import TextCard from "./components/FlashCard/TextCard";
 import { Phrase, phraseList } from "./components/Phrases";
 import { useEffect, useMemo, useState } from "react";
@@ -12,6 +12,8 @@ const difficultyMap: { [key: string]: number } = {
   hard: 10,
   endless: 10,
 };
+
+const PLAYER_NAME_KEY = "playerName";
 
 // Helper function for generating random numbers
 const randomNumberInRange = (min: number, max: number) => {
@@ -76,9 +78,33 @@ export default function HomePage() {
   const [difficulty, setDifficulty] = useState("easy");
   const [chosenPhrases, setChosenPhrases] = useState(choosePhrases(difficultyMap[difficulty]));
 
+  // --- Player name (saved to localStorage) ---
+  const [playerName, setPlayerName] = useState("");
+  const [nameDraft, setNameDraft] = useState("");
+  const [nameModalOpen, setNameModalOpen] = useState(false);
+
+  // --- Win screen ---
+  const [gameWonOpen, setGameWonOpen] = useState(false);
+
   useEffect(() => {
     setIsClient(true);
+
+    // Load saved name, or prompt for one if none exists yet
+    const savedName = window.localStorage.getItem(PLAYER_NAME_KEY);
+    if (savedName) {
+      setPlayerName(savedName);
+    } else {
+      setNameModalOpen(true);
+    }
   }, []);
+
+  const saveName = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    window.localStorage.setItem(PLAYER_NAME_KEY, trimmed);
+    setPlayerName(trimmed);
+    setNameModalOpen(false);
+  };
 
   // Used for card colors. If there's a correct match, let the game know
   const [isCorrectMatch, setIsCorrectMatch] = useState<boolean | null>(null);
@@ -164,9 +190,15 @@ export default function HomePage() {
           setTxtOrder((prev) => prev.map((phrase) => (phrase.id === matchedId ? newPhrase : phrase)));
           setImgOrder((prev) => prev.map((phrase) => (phrase.id === matchedId ? newPhrase : phrase)));
         } else {
-          setChosenPhrases((prev) => prev.filter((phrase) => phrase.id !== matchedId));
+          const remaining = chosenPhrases.filter((phrase) => phrase.id !== matchedId);
+          setChosenPhrases(remaining);
           setTxtOrder((prev) => prev.filter((phrase) => phrase.id !== matchedId));
           setImgOrder((prev) => prev.filter((phrase) => phrase.id !== matchedId));
+
+          // If that was the last pair, the player has won!
+          if (remaining.length === 0) {
+            setGameWonOpen(true);
+          }
         }
       }
       setTxtButton(-1);
@@ -177,6 +209,17 @@ export default function HomePage() {
 
   const imgCardsLeft = imgCards.filter((_, i) => i % 2 === 0);
   const imgCardsRight = imgCards.filter((_, i) => i % 2 === 1);
+
+  const startNewGame = () => {
+    const newPhrases = choosePhrases(difficultyMap[difficulty]);
+    setChosenPhrases(newPhrases);
+    setTxtOrder(shuffleArray(newPhrases));
+    setImgOrder(shuffleArray(newPhrases));
+    setScore(0);
+    setStreak(0);
+    setLives(3);
+    setGameWonOpen(false);
+  };
 
   let titleBar;
 
@@ -204,7 +247,50 @@ export default function HomePage() {
 
   return (
     <>
+      {/* Name entry modal — shown once, on first visit */}
+      <Modal
+        opened={nameModalOpen}
+        onClose={() => {}}
+        withCloseButton={false}
+        closeOnClickOutside={false}
+        closeOnEscape={false}
+        title="Welcome!"
+      >
+        <Stack>
+          <Text>What's your name?</Text>
+          <TextInput
+            placeholder="Enter your name"
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveName(nameDraft);
+            }}
+            data-autofocus
+          />
+          <Button onClick={() => saveName(nameDraft)} disabled={!nameDraft.trim()}>
+            Save
+          </Button>
+        </Stack>
+      </Modal>
+
+      {/* "You Won" modal */}
+      <Modal opened={gameWonOpen} onClose={() => setGameWonOpen(false)} title="おめでとうございます！" centered>
+        <Stack>
+          <Text size="lg">{playerName ? `Congratulations, ${playerName}!` : "Congratulations!"}</Text>
+          <Text>Final Score: {score}</Text>
+          <Text>Best Streak: {streak}</Text>
+          <Button onClick={startNewGame}>Play Again</Button>
+        </Stack>
+      </Modal>
+
       <Center>{titleBar}</Center>
+      {playerName && (
+        <Center>
+          <Text c="dimmed" size="sm">
+            Playing as {playerName}
+          </Text>
+        </Center>
+      )}
       <Grid>
         <Grid.Col span={4}>
           <Center>
@@ -230,19 +316,7 @@ export default function HomePage() {
         </Grid.Col>
         <Grid.Col span={4}>
           <Center>
-            <Button
-              onClick={() => {
-                const newPhrases = choosePhrases(difficultyMap[difficulty]);
-                setChosenPhrases(newPhrases);
-                setTxtOrder(shuffleArray(newPhrases));
-                setImgOrder(shuffleArray(newPhrases));
-                setScore(0);
-                setStreak(0);
-                setLives(3);
-              }}
-            >
-              Generate
-            </Button>
+            <Button onClick={startNewGame}>Generate</Button>
           </Center>
         </Grid.Col>
       </Grid>
@@ -272,6 +346,33 @@ export default function HomePage() {
           </Grid>
         </Grid.Col>
       </Grid>
+      <Space h="xl" />
+
+      {/* Tutorial / How to Play */}
+      <Center>
+        <Stack maw={600} gap="xs" p="md">
+          <Title order={3} ta="center">
+            How to Play
+          </Title>
+          <Text>
+            <b>Match:</b> Click a sentence on the left (動詞) and its matching picture on the right (写真), then
+            press <b>Evaluate</b> to check if they go together.
+          </Text>
+          <Text>
+            <b>Correct pairs</b> turn green and disappear from the board (or get replaced in
+            Endless mode). As you continue to get right answers, your streak increases!
+          </Text>
+          <Text>
+            <b>Wrong guesses</b> turn red and reset your streak.
+          </Text>
+          <Text>
+            <b>Generate:</b> This button effectively restarts the game.
+          </Text>
+          <Text>
+            <b>Difficulty:</b> Easy, Medium, and Hard give you 6, 8, or 10 sentences respectively. Endless will continue until you get three wrong answers.
+          </Text>
+        </Stack>
+      </Center>
     </>
   );
 }
