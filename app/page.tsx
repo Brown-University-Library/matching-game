@@ -1,19 +1,6 @@
 "use client";
 
-import {
-  Center,
-  Grid,
-  Title,
-  Image,
-  Button,
-  Space,
-  Radio,
-  Group,
-  Modal,
-  TextInput,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { Center, Grid, Title, Image, Button, Space, Radio, Group, Modal, TextInput, Stack, Text } from "@mantine/core";
 import TextCard from "./components/FlashCard/TextCard";
 import { Phrase, phraseList } from "./components/Phrases";
 import { useEffect, useMemo, useState } from "react";
@@ -50,10 +37,7 @@ function choosePhrases(cardsAmt: number): Phrase[] {
 }
 
 // Function to replace the chosen phrase in a list with a random new one not currently in the list
-function replacePhrase(
-  phrases: Phrase[],
-  phraseId: number,
-): { phrases: Phrase[]; newPhrase: Phrase } {
+function replacePhrase(phrases: Phrase[], phraseId: number): { phrases: Phrase[]; newPhrase: Phrase } {
   let newId = phrases[0].id;
   let ind = 0;
   // As long as we keep finding something in our list, reroll
@@ -92,9 +76,7 @@ export default function HomePage() {
   // Use state to track the chosen phrases, since we reshuffle them
   // Also track difficulty
   const [difficulty, setDifficulty] = useState("easy");
-  const [chosenPhrases, setChosenPhrases] = useState(
-    choosePhrases(difficultyMap[difficulty]),
-  );
+  const [chosenPhrases, setChosenPhrases] = useState(choosePhrases(difficultyMap[difficulty]));
 
   // --- Player name (saved to localStorage) ---
   const [playerName, setPlayerName] = useState("");
@@ -145,21 +127,15 @@ export default function HomePage() {
 
   // Shuffle the phrases and images so pairs don't appear next to each other, and images don't match their phrases
   // Use memo to ensure this only happens when our array actually changes
-  const [txtOrder, setTxtOrder] = useState<Phrase[]>(() =>
-    shuffleArray(chosenPhrases),
-  );
-  const [imgOrder, setImgOrder] = useState<Phrase[]>(() =>
-    shuffleArray(chosenPhrases),
-  );
+  const [txtOrder, setTxtOrder] = useState<Phrase[]>(() => shuffleArray(chosenPhrases));
+  const [imgOrder, setImgOrder] = useState<Phrase[]>(() => shuffleArray(chosenPhrases));
 
   // Map each element in the chosen phrases array to a text card
   // Use state to keep track of which button is selected
   const [selectedTxtButton, setTxtButton] = useState(-1);
   // Use state to keep track of which audio is playing
   const textCards = txtOrder.map((phrase) => {
-    let cardText: string = isClient
-      ? phrase.object + phrase.particle + phrase.kanji
-      : "ローディング中";
+    let cardText: string = isClient ? phrase.object + phrase.particle + phrase.kanji : "ローディング中";
     return (
       <TextCard
         key={phrase.id}
@@ -209,32 +185,15 @@ export default function HomePage() {
     setTimeout(() => {
       if (wasCorrect) {
         if (difficulty === "endless") {
-          const { phrases: updatedPhrases, newPhrase } = replacePhrase(
-            chosenPhrases,
-            matchedId,
-          );
+          const { phrases: updatedPhrases, newPhrase } = replacePhrase(chosenPhrases, matchedId);
           setChosenPhrases(updatedPhrases);
-          setTxtOrder((prev) =>
-            prev.map((phrase) =>
-              phrase.id === matchedId ? newPhrase : phrase,
-            ),
-          );
-          setImgOrder((prev) =>
-            prev.map((phrase) =>
-              phrase.id === matchedId ? newPhrase : phrase,
-            ),
-          );
+          setTxtOrder((prev) => prev.map((phrase) => (phrase.id === matchedId ? newPhrase : phrase)));
+          setImgOrder((prev) => prev.map((phrase) => (phrase.id === matchedId ? newPhrase : phrase)));
         } else {
-          const remaining = chosenPhrases.filter(
-            (phrase) => phrase.id !== matchedId,
-          );
+          const remaining = chosenPhrases.filter((phrase) => phrase.id !== matchedId);
           setChosenPhrases(remaining);
-          setTxtOrder((prev) =>
-            prev.filter((phrase) => phrase.id !== matchedId),
-          );
-          setImgOrder((prev) =>
-            prev.filter((phrase) => phrase.id !== matchedId),
-          );
+          setTxtOrder((prev) => prev.filter((phrase) => phrase.id !== matchedId));
+          setImgOrder((prev) => prev.filter((phrase) => phrase.id !== matchedId));
 
           // If that was the last pair, the player has won!
           if (remaining.length === 0) {
@@ -267,8 +226,7 @@ export default function HomePage() {
   if (difficulty === "endless") {
     titleBar = (
       <Title order={1}>
-        日本語のマッチングゲーム {"Score: " + score} {" Streak: " + streak}{" "}
-        {"Lives: " + lives}
+        日本語のマッチングゲーム {"Score: " + score} {" Streak: " + streak} {"Lives: " + lives}
       </Title>
     );
     if (lives === 0) {
@@ -299,7 +257,7 @@ export default function HomePage() {
         title="Welcome!"
       >
         <Stack>
-          <Text>What's your name?</Text>
+          <Text>{"What's your name?"}</Text>
           <TextInput
             placeholder="Enter your name"
             value={nameDraft}
@@ -309,28 +267,16 @@ export default function HomePage() {
             }}
             data-autofocus
           />
-          <Button
-            onClick={() => saveName(nameDraft)}
-            disabled={!nameDraft.trim()}
-          >
+          <Button onClick={() => saveName(nameDraft)} disabled={!nameDraft.trim()}>
             Save
           </Button>
         </Stack>
       </Modal>
 
       {/* "You Won" modal */}
-      <Modal
-        opened={gameWonOpen}
-        onClose={() => setGameWonOpen(false)}
-        title="おめでとうございます！"
-        centered
-      >
+      <Modal opened={gameWonOpen} onClose={() => setGameWonOpen(false)} title="おめでとうございます！" centered>
         <Stack>
-          <Text size="lg">
-            {playerName
-              ? `Congratulations, ${playerName}!`
-              : "Congratulations!"}
-          </Text>
+          <Text size="lg">{playerName ? `Congratulations, ${playerName}!` : "Congratulations!"}</Text>
           <Text>Final Score: {score}</Text>
           <Text>Best Streak: {streak}</Text>
           <Button onClick={startNewGame}>Play Again</Button>
@@ -348,12 +294,7 @@ export default function HomePage() {
       <Grid>
         <Grid.Col span={4}>
           <Center>
-            <Radio.Group
-              name="difficulty"
-              label="Select your difficulty!"
-              value={difficulty}
-              onChange={setDifficulty}
-            >
+            <Radio.Group name="difficulty" label="Select your difficulty!" value={difficulty} onChange={setDifficulty}>
               <Group mt="xs">
                 <Radio value="easy" label="Easy" />
                 <Radio value="medium" label="Medium" />
@@ -367,11 +308,7 @@ export default function HomePage() {
           <Center>
             <Button
               onClick={() => checkMatch()}
-              disabled={
-                selectedImgButton == -1 ||
-                selectedTxtButton == -1 ||
-                isEvaluating
-              }
+              disabled={selectedImgButton == -1 || selectedTxtButton == -1 || isEvaluating}
             >
               Evaluate
             </Button>
@@ -418,14 +355,12 @@ export default function HomePage() {
             How to Play
           </Title>
           <Text>
-            <b>Match:</b> Click a sentence on the left (動詞) and its matching
-            picture on the right (写真), then press <b>Evaluate</b> to check if
-            they go together.
+            <b>Match:</b> Click a sentence on the left (動詞) and its matching picture on the right (写真), then press{" "}
+            <b>Evaluate</b> to check if they go together.
           </Text>
           <Text>
-            <b>Correct pairs</b> turn green and disappear from the board (or get
-            replaced in Endless mode). As you continue to get right answers,
-            your streak increases!
+            <b>Correct pairs</b> turn green and disappear from the board (or get replaced in Endless mode). As you
+            continue to get right answers, your streak increases!
           </Text>
           <Text>
             <b>Wrong guesses</b> turn red and reset your streak.
@@ -434,9 +369,8 @@ export default function HomePage() {
             <b>Generate:</b> This button effectively restarts the game.
           </Text>
           <Text>
-            <b>Difficulty:</b> Easy, Medium, and Hard give you 6, 8, or 10
-            sentences respectively. Endless will continue until you get three
-            wrong answers.
+            <b>Difficulty:</b> Easy, Medium, and Hard give you 6, 8, or 10 sentences respectively. Endless will continue
+            until you get three wrong answers.
           </Text>
         </Stack>
       </Center>
@@ -447,8 +381,7 @@ export default function HomePage() {
             Credits
           </Title>
           <Text>
-            <b>Project Director & Japanese Language Content</b>: Atsuko Suga
-            Borgmann
+            <b>Project Director & Japanese Language Content</b>: Atsuko Suga Borgmann
           </Text>
           <Text>
             <b>Game Design & Programming</b>: Angel Arrazola and Ross Williams
@@ -457,10 +390,7 @@ export default function HomePage() {
             <b>Artist</b>: Phoebe Yao
           </Text>
           <Text>
-            <i>
-              This project was developed at Brown University with support from
-              the UTRA.
-            </i>
+            <i>This project was developed at Brown University with support from the UTRA.</i>
           </Text>
         </Stack>
       </Center>
